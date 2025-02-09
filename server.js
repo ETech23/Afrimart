@@ -16,14 +16,21 @@ connectDB()
   });
 
 // ✅ CORS Configuration
+
 const corsOptions = {
-    origin: "*", // Allow all origins (temporary for debugging)
+    origin: "*", // Allow all origins
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    credentials: true, // Allow cookies if needed
-    optionsSuccessStatus: 204,
+    credentials: true, // Ensure cookies are sent if needed
+    allowedHeaders: ["Content-Type", "Authorization"], // Allow specific headers
 };
 
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Handle preflight requests
+
+console.log("Backend running on:", process.env.PORT || 5000);
+console.log("MongoDB URI:", process.env.MONGO_URI);
+console.log("JWT Secret:", process.env.JWT_SECRET);
+
 // ✅ Middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
