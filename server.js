@@ -16,7 +16,6 @@ connectDB()
   });
 
 // ✅ CORS Configuration
-const cors = require("cors");
 
 const allowedOrigins = [
   "https://thrift-wzcg.onrender.com", 
