@@ -1,66 +1,75 @@
-require('dotenv').config();
-console.log("MONGO_URI:", process.env.MONGO_URI);  // Debugging
-
-const express = require('express');
-const cors = require('cors');
-const connectDB = require('./config/db');
+require("dotenv").config(); // Load environment variables
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("./config/db");
 
 const app = express();
 
-// Security middleware - CORS Configuration
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
+// ✅ Connect to MongoDB
+connectDB()
+  .then(() => {
+    console.log("✅ MongoDB Connected Successfully");
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB Connection Failed:", err);
+    process.exit(1);
+  });
 
-app.use(cors({
+// ✅ CORS Configuration
+const allowedOrigins = (process.env.CORS_ORIGIN || "").split(",");
+app.use(
+  cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// ✅ Middleware
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Connect to database
-connectDB().then(() => {
-    // Routes
-    app.use('/api/users', require('./routes/users'));
-    app.use('/api/items', require('./routes/items'));
-
-    app.use((req, res, next) => {
-    console.log(`Incoming request: ${req.method} ${req.url}`);
-    next();
+// ✅ Logging Middleware (Debugging)
+app.use((req, res, next) => {
+  console.log(`📢 Incoming request: ${req.method} ${req.url}`);
+  next();
 });
 
-    // Error handling middleware
-    app.use((err, req, res, next) => {
-        console.error(err.stack);
-        res.status(err.status || 500).json({
-            error: err.message || 'Something went wrong!',
-            status: err.status || 500
-        });
-    });
+// ✅ API Routes
+app.use("/api/users", require("./routes/users"));
+app.use("/api/items", require("./routes/items"));
 
-    // Start server
-    const PORT = process.env.PORT || 5000;
-    const server = app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
+// ✅ Default Route (To check if API is running)
+app.get("/", (req, res) => {
+  res.json({ message: "🚀 API is running..." });
+});
 
-    // Graceful shutdown
-    process.on('SIGTERM', () => {
-        console.log('SIGTERM received. Shutting down gracefully...');
-        server.close(() => {
-            console.log('Process terminated');
-            process.exit(0);
-        });
-    });
+// ✅ Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error("🔥 Error:", err.stack);
+  res.status(err.status || 500).json({
+    error: err.message || "Something went wrong!",
+    status: err.status || 500,
+  });
+});
 
-}).catch(err => {
-    console.error('Failed to connect to MongoDB:', err);
-    process.exit(1);
+// ✅ Start Server
+const PORT = process.env.PORT || 5000;
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
+// ✅ Graceful Shutdown
+process.on("SIGTERM", () => {
+  console.log("⚠️ SIGTERM received. Shutting down gracefully...");
+  server.close(() => {
+    console.log("✅ Process terminated.");
+    process.exit(0);
+  });
 });
