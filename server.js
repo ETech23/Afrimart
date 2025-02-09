@@ -16,10 +16,17 @@ connectDB()
   });
 
 // ✅ CORS Configuration
-const allowedOrigins = (process.env.CORS_ORIGIN || "").split(",");
+const cors = require("cors");
+
+const allowedOrigins = [
+  "https://thrift-wzcg.onrender.com", 
+  "http://localhost:3000" ];
+
 app.use(
   cors({
     origin: function (origin, callback) {
+      console.log("Incoming request from:", origin); // Debugging
+
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -28,6 +35,7 @@ app.use(
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true // Allow cookies/auth headers
   })
 );
 
