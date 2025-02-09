@@ -84,6 +84,12 @@ router.post(
     }
   }
 );
+
+// GET /api/users - Test Route
+router.get("/", async (req, res) => {
+    res.json({ message: "Users route is working!" });
+});
+
 // Get user profile
 router.get('/profile', auth, async (req, res) => {
   try {

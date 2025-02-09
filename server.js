@@ -31,6 +31,11 @@ connectDB().then(() => {
     app.use('/api/users', require('./routes/users'));
     app.use('/api/items', require('./routes/items'));
 
+    app.use((req, res, next) => {
+    console.log(`Incoming request: ${req.method} ${req.url}`);
+    next();
+});
+
     // Error handling middleware
     app.use((err, req, res, next) => {
         console.error(err.stack);
