@@ -16,12 +16,21 @@ connectDB()
   });
 
 // ✅ CORS Configuration
+const allowedOrigins = [
+    "http://localhost:3000", 
+    "https://thrift-wzcg.onrender.com"
+];
 
-// Allow requests from your frontend
 const corsOptions = {
-    origin: ["http://localhost:3000", "https://thrift-wzcg.onrender.com"], // Adjust based on your frontend URL
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("CORS blocked: Not allowed by CORS policy"));
+        }
+    },
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    credentials: true, // Allow cookies if needed
+    credentials: true,
     optionsSuccessStatus: 204,
 };
 
