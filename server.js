@@ -18,23 +18,22 @@ connectDB()
 // ✅ CORS Configuration
 
 const allowedOrigins = [
-  "https://thrift-wzcg.onrender.com", 
-  "http://localhost:3000" ];
+  "http://localhost:3000", // For local development
+  "https://thrift-wzcg.onrender.com" // Your frontend URL
+];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      console.log("Incoming request from:", origin); // Debugging
-
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
       }
     },
+    credentials: true, // Allow cookies if needed
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true // Allow cookies/auth headers
   })
 );
 

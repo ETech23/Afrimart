@@ -39,51 +39,33 @@ router.post("/register", async (req, res) => {
 
 
 // Login route
-router.post(
-  '/login',
-  [
-    check('email', 'Please include a valid email').isEmail(),
-    check('password', 'Password is required').exists(),
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password } = req.body;
-    console.log("Received password:", password);  // Log the password from request
-
+router.post("/login", async (req, res) => {
     try {
-      // Include the password field in the query using .select('+password')
-      const user = await User.findOne({ email }).select('+password');
-      
-      if (!user) {
-        return res.status(400).json({ error: 'User not found' });
-      }
+        const { email, password } = req.body;
+        console.log("Received password:", password); 
 
-      console.log("User found, password in DB:", user.password);  // Log the stored password in DB
+        const user = await User.findOne({ email }).select("+password");
+        if (!user) {
+            return res.status(400).json({ error: "User not found" });
+        }
 
-      // Check if the password matches
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ error: 'Invalid credentials' });
-      }
+        console.log("User found, password in DB:", user.password);  
 
-      const token = jwt.sign(
-        { userId: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: "Invalid credentials" });
+        }
 
-      res.json({ token });
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+        console.log("✅ Login successful, sending token:", token);
+        res.json({ token });
 
     } catch (error) {
-      console.error('Login Error:', error);
-      res.status(500).json({ error: 'Server error' });
+        console.error("🔥 Login Error:", error);
+        res.status(500).json({ error: "Server error" });
     }
-  }
-);
+});
 
 // GET /api/users - Test Route
 router.get("/", async (req, res) => {
