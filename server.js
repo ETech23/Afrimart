@@ -20,7 +20,6 @@ connectDB()
 const corsOptions = {
     origin: "*", // Allow all origins
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    credentials: true, // Ensure cookies are sent if needed
     allowedHeaders: ["Content-Type", "Authorization"], // Allow specific headers
 };
 
