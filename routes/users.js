@@ -39,7 +39,6 @@ router.post("/register", async (req, res) => {
 
 
 // Login route
-
 router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -54,7 +53,7 @@ router.post("/login", async (req, res) => {
         console.log("✅ User found, password in DB:", user.password);
 
         const isMatch = await bcrypt.compare(password, user.password);
-        console.log("Password match result:", isMatch);  
+        console.log("Password match result:", isMatch);
 
         if (!isMatch) {
             console.log("❌ Invalid credentials");
@@ -64,7 +63,16 @@ router.post("/login", async (req, res) => {
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
         console.log("✅ Login successful, sending token:", token);
-        res.json({ token });
+        
+        // 🔥 Add user data to the response
+        res.json({
+            token,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
 
     } catch (error) {
         console.error("🔥 Login Error:", error);
