@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 // Create item
 router.post('/', [
   auth,
-  upload.array('media', 3),
+  upload.array('media', 3),  // Ensure multer is set up correctly
   [
     check('name', 'Name is required').notEmpty(),
     check('description', 'Description is required').notEmpty(),
@@ -31,14 +31,36 @@ router.post('/', [
     check('location', 'Location is required').notEmpty()
   ]
 ], async (req, res) => {
+  
+  console.log("🟢 Incoming POST /api/items request");
+  
+  // Check request authentication
+  if (!req.user) {
+    console.log("❌ Authentication failed: No user attached to request");
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  console.log("🟢 Authenticated user:", req.user.userId);
+
+  // Check for validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log("❌ Validation failed:", errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const images = req.files.map(file => file.path);
+    // Check if files were uploaded
+    console.log("🟢 Uploaded files:", req.files);
     
+    if (!req.files || req.files.length === 0) {
+      console.log("❌ No files uploaded");
+      return res.status(400).json({ error: "No media files uploaded" });
+    }
+
+    const images = req.files.map(file => file.path);
+    console.log("🟢 Processed image paths:", images);
+
     const item = new Item({
       name: req.body.name,
       description: req.body.description,
@@ -50,12 +72,15 @@ router.post('/', [
       user: req.user.userId
     });
 
+    console.log("🟢 Saving item to database:", item);
     await item.save();
-    
+
+    // Populate user info in response
     const populatedItem = await Item.findById(item._id).populate('user', 'name avatar');
+    console.log("✅ Item saved successfully:", populatedItem);
     res.status(201).json(populatedItem);
   } catch (error) {
-    console.error(error);
+    console.error("🔥 Server Error:", error);
     res.status(500).json({ error: 'Server error' });
   }
 });
