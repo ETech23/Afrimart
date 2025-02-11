@@ -9,34 +9,33 @@ const auth = require('../middleware/auth');
 // Register user
 router.post("/register", async (req, res) => {
     try {
-        const { name, email, password } = req.body;  // Change "username" to "name"
+        const { name, email, password } = req.body;
 
         console.log("Request Body:", req.body); // Debugging
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ error: "User already exists" });
+            return res.status(400).json({ success: false, error: "User already exists" });
         }
 
         // Hash password before saving
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newUser = new User({
-            name, // Ensure "name" is correctly assigned
+            name,
             email,
             password: hashedPassword,
         });
 
         await newUser.save();
-        res.status(201).json({ message: "User registered successfully" });
+        res.status(201).json({ success: true, message: "User registered successfully" });
 
     } catch (error) {
         console.error("Registration Error:", error);
-        res.status(500).json({ error: "Server error" });
+        res.status(500).json({ success: false, error: "Server error" });
     }
 });
-
 
 // Login route
 router.post("/login", async (req, res) => {
