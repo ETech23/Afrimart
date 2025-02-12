@@ -99,6 +99,22 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+
+router.post("/make-offer", auth, async (req, res) => {
+  const { itemId, sellerId } = req.body;
+
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+
+  io.emit("offerNotification", {
+    buyerId: req.user.userId,
+    sellerId,
+    itemId,
+  });
+
+  res.json({ success: true, message: "Offer sent successfully" });
+});
+
+
 // Update item
 router.put('/:id', [auth, upload.array('media', 3)], async (req, res) => {
   try {
@@ -147,6 +163,24 @@ router.delete('/:id', auth, async (req, res) => {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+const { io } = require("../server"); // Import io instance
+
+router.post('/make-offer', auth, async (req, res) => {
+    const { itemId, sellerId } = req.body;
+
+    if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Emit offer notification to the seller
+    io.to(sellerId).emit("offerNotification", {
+        buyerId: req.user.userId,
+        itemId,
+    });
+
+    res.json({ success: true, message: "Offer sent successfully" });
 });
 
 module.exports = router;

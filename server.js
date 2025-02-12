@@ -1,74 +1,68 @@
-require("dotenv").config(); // Load environment variables
 const express = require("express");
+const http = require("http");
 const cors = require("cors");
+const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 
+require("dotenv").config();
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
-// ✅ Connect to MongoDB
-connectDB()
-  .then(() => {
-    console.log("✅ MongoDB Connected Successfully");
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB Connection Failed:", err);
-    process.exit(1);
-  });
-
-// ✅ CORS Configuration
+connectDB().then(() => console.log("✅ MongoDB Connected Successfully"));
 
 const corsOptions = {
-    origin: "*", // Allow all origins
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: ["Content-Type", "Authorization"], // Allow specific headers
+  origin: "*",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Handle preflight requests
+app.use(express.json());
 
-console.log("Backend running on:", process.env.PORT || 5000);
-console.log("MongoDB URI:", process.env.MONGO_URI);
-console.log("JWT Secret:", process.env.JWT_SECRET);
+const onlineUsers = new Map(); // Store active users
 
-// ✅ Middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Socket.io Connection
+io.on("connection", (socket) => {
+  console.log("🔌 A user connected:", socket.id);
 
-// ✅ Logging Middleware (Debugging)
-app.use((req, res, next) => {
-  console.log(`📢 Incoming request: ${req.method} ${req.url}`);
-  next();
+  socket.on("userConnected", (userId) => {
+    onlineUsers.set(userId, socket.id);
+    console.log("✅ User online:", userId);
+  });
+
+  socket.on("sendOffer", ({ sellerId, buyerId, itemId }) => {
+    const sellerSocketId = onlineUsers.get(sellerId);
+    if (sellerSocketId) {
+      io.to(sellerSocketId).emit("offerNotification", { buyerId, itemId });
+    }
+  });
+
+  socket.on("sendMessage", ({ senderId, receiverId, message }) => {
+    const receiverSocketId = onlineUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", { senderId, message });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("❌ A user disconnected:", socket.id);
+    onlineUsers.forEach((value, key) => {
+      if (value === socket.id) {
+        onlineUsers.delete(key);
+      }
+    });
+  });
 });
 
-// ✅ API Routes
 app.use("/api/users", require("./routes/users"));
 app.use("/api/items", require("./routes/items"));
+app.use("/api/chats", require("./routes/chats"));
 
-// ✅ Default Route (To check if API is running)
-app.get("/", (req, res) => {
-  res.json({ message: "🚀 API is running..." });
-});
-
-// ✅ Error Handling Middleware
-app.use((err, req, res, next) => {
-  console.error("🔥 Error:", err.stack);
-  res.status(err.status || 500).json({
-    error: err.message || "Something went wrong!",
-    status: err.status || 500,
-  });
-});
-
-// ✅ Start Server
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
-
-// ✅ Graceful Shutdown
-process.on("SIGTERM", () => {
-  console.log("⚠️ SIGTERM received. Shutting down gracefully...");
-  server.close(() => {
-    console.log("✅ Process terminated.");
-    process.exit(0);
-  });
-});
+server.listen(5000, () => console.log("🚀 Server running on port 5000"));
