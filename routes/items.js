@@ -101,19 +101,35 @@ router.get('/:id', async (req, res) => {
 
 
 router.post("/make-offer", auth, async (req, res) => {
-  const { itemId, sellerId } = req.body;
+    const { itemId } = req.body;
 
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
 
-  io.emit("offerNotification", {
-    buyerId: req.user.userId,
-    sellerId,
-    itemId,
-  });
+    try {
+        // Fetch the item to get the seller (user who posted it)
+        const item = await Item.findById(itemId).populate("user", "_id");
 
-  res.json({ success: true, message: "Offer sent successfully" });
+        if (!item) {
+            return res.status(404).json({ error: "Item not found" });
+        }
+
+        const sellerId = item.user._id; // Seller ID from the item
+
+        // Emit offer notification
+        io.to(sellerId.toString()).emit("offerNotification", {
+            buyerId: req.user.userId,
+            sellerId,
+            itemId,
+        });
+
+        res.json({ success: true, message: "Offer sent successfully" });
+    } catch (error) {
+        console.error("🔥 Error making offer:", error);
+        res.status(500).json({ error: "Server error" });
+    }
 });
-
 
 // Update item
 router.put('/:id', [auth, upload.array('media', 3)], async (req, res) => {
