@@ -103,32 +103,40 @@ module.exports = function(sendOfferNotification) {
   });
 
   // Handle make-offer request
-  router.post("/make-offer", auth, async (req, res) => {
+router.post("/make-offer", auth, async (req, res) => {
     const { itemId } = req.body;
 
+    // Log the received itemId to ensure it's being passed
+    console.log("🔌 Received itemId:", itemId);
+
     if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
+        console.log("❌ Unauthorized request - No user attached to the request.");
+        return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
-      // Fetch the item to get the seller (user who posted it)
-      const item = await Item.findById(itemId).populate("user", "_id");
+        // Fetch the item to get the seller (user who posted it)
+        const item = await Item.findById(itemId).populate("user", "_id");
 
-      if (!item) {
-        return res.status(404).json({ error: "Item not found" });
-      }
+        // Log the fetched item for debugging
+        console.log("🔍 Fetched item:", item);
 
-      const sellerId = item.user._id; // Seller ID from the item
+        if (!item) {
+            return res.status(404).json({ error: "Item not found" });
+        }
 
-      // Use sendOfferNotification function to emit the event
-      sendOfferNotification(sellerId.toString(), req.user.userId, itemId);
+        const sellerId = item.user._id; // Seller ID from the item
+        console.log("💡 Seller ID:", sellerId);
 
-      res.json({ success: true, message: "Offer sent successfully" });
+        // Use sendOfferNotification function to emit the event
+        sendOfferNotification(sellerId.toString(), req.user.userId, itemId);
+
+        res.json({ success: true, message: "Offer sent successfully", sellerId: sellerId });
     } catch (error) {
-      console.error("🔥 Error making offer:", error);
-      res.status(500).json({ error: "Server error" });
+        console.error("🔥 Error making offer:", error);
+        res.status(500).json({ error: "Server error" });
     }
-  });
+});
 
   // Update item
   router.put('/:id', [auth, upload.array('media', 3)], async (req, res) => {
