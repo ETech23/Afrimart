@@ -1,19 +1,14 @@
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
-const { Server } = require("socket.io");
+const { initSocket } = require("./socket");
 const connectDB = require("./config/db");
 
 require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
+const io = initSocket(server);  // Initialize Socket.io
 
 connectDB().then(() => console.log("✅ MongoDB Connected Successfully"));
 
@@ -61,8 +56,16 @@ io.on("connection", (socket) => {
   });
 });
 
+// Emit event when an offer is made
+const sendOfferNotification = (sellerId, buyerId, itemId) => {
+  const sellerSocketId = onlineUsers.get(sellerId);
+  if (sellerSocketId) {
+    io.to(sellerSocketId).emit("offerNotification", { buyerId, itemId });
+  }
+};
+
 app.use("/api/users", require("./routes/users"));
-app.use("/api/items", require("./routes/items"));
+app.use("/api/items", require("./routes/items")(sendOfferNotification));  // Pass function to items route
 app.use("/api/chats", require("./routes/chats"));
 
 server.listen(5000, () => console.log("🚀 Server running on port 5000"));
