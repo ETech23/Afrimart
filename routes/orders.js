@@ -1,4 +1,4 @@
-routes/orders.js                       const express = require("express");
+const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const Order = require("../models/Order");
@@ -11,8 +11,8 @@ router.post("/create", auth, async (req, res) => {
 
   try {
     const item = await Item.findById(itemId).populate("user", "_id name");
-    if (!item) return res.status(404).json({ error: "Item not found" });                                                
-    // ✅ Create order
+    if (!item) return res.status(404).json({ error: "Item not found" });
+
     const newOrder = new Order({
       buyer: req.user.userId,
       seller: item.user._id,
@@ -21,32 +21,40 @@ router.post("/create", auth, async (req, res) => {
     });
 
     await newOrder.save();
-
-    // ✅ Redirect buyer to the order page
     const orderPageLink = `/order.html?orderId=${newOrder._id}&itemId=${itemId}`;
     res.status(201).json({ success: true, order: newOrder, redirect: orderPageLink });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
-  } catch (error) {                                             console.error("Error creating order:", error);              res.status(500).json({ error: "Server error" });          }
-});                                                         // ✅ Get all orders for a buyer or seller                  router.get("/:userId", auth, async (req, res) => {
-  try {                                                         const orders = await Order.find({
+// ✅ Get all orders for a buyer or seller
+router.get("/:userId", auth, async (req, res) => {
+  try {
+    const orders = await Order.find({
       $or: [{ buyer: req.params.userId }, { seller: req.params.userId }],
-    })                                                            .populate("item", "name price images")
-      .populate("seller", "name avatar")                          .populate("buyer", "name avatar");
-                                                                res.json(orders);
-  } catch (error) {                                             console.error("Error retrieving orders:", error);
-    res.status(500).json({ error: "Server error" });          }
-});                                                         
+    })
+      .populate("item", "name price images")
+      .populate("seller", "name avatar")
+      .populate("buyer", "name avatar");
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Error retrieving orders:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ✅ Get a specific order (Fixes missing seller & buyer details)
-router.get("/:orderId", auth, async (req, res) => {
+router.get("/order/:orderId", auth, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
-      .populate("item", "name price images")   // ✅ Ensure item details are populated
-      .populate("seller", "name avatar")       // ✅ Ensure seller details are populated
-      .populate("buyer", "name avatar");       // ✅ Ensure buyer details are populated
+      .populate("item", "name price images")
+      .populate("seller", "name avatar")
+      .populate("buyer", "name avatar");
 
     if (!order) return res.status(404).json({ error: "Order not found" });
-
-    console.log("✅ Order fetched successfully:", JSON.stringify(order, null, 2)); // ✅ Log full order
 
     res.json(order);
   } catch (error) {
@@ -54,16 +62,20 @@ router.get("/:orderId", auth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-                                                            // ✅ Send a message in the order chat                      router.post("/:orderId/message", auth, async (req, res) => {
-  const { message } = req.body;                             
-  try {                                                         const order = await Order.findById(req.params.orderId);
+
+// ✅ Send a message in the order chat
+router.post("/:orderId/message", auth, async (req, res) => {
+  const { message } = req.body;
+
+  try {
+    const order = await Order.findById(req.params.orderId);
     if (!order) return res.status(404).json({ error: "Order not found" });
-                                                                // Add message to order
-    order.messages.push({                                         sender: req.user.userId,
-      message: message,                                         });
-                                                                await order.save();
+
+    order.messages.push({ sender: req.user.userId, message });
+    await order.save();
     res.json({ success: true, message: "Message sent", order });
-  } catch (error) {                                             console.error("Error posting message:", error);
+  } catch (error) {
+    console.error("Error posting message:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -71,10 +83,7 @@ router.get("/:orderId", auth, async (req, res) => {
 // ✅ Get messages for a specific order
 router.get("/:orderId/messages", auth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId).populate(
-      "messages.sender",
-      "name avatar"
-    );
+    const order = await Order.findById(req.params.orderId).populate("messages.sender", "name avatar");
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     res.json(order.messages);
@@ -83,4 +92,6 @@ router.get("/:orderId/messages", auth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-                                                            module.exports = router;
+
+// ✅ Make sure this is at the END of the file
+module.exports = router;
