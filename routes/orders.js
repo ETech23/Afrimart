@@ -47,22 +47,26 @@ router.get("/:userId", auth, async (req, res) => {
 });
 
 // ✅ Get a specific order (Fixes missing seller & buyer details)
-router.get("/order/:orderId", auth, async (req, res) => {
+router.get("/:orderId", auth, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
-      .populate("item", "name price images")
-      .populate("seller", "name avatar")
-      .populate("buyer", "name avatar");
+      .populate("item", "name price images")  // ✅ Get item details
+      .populate("seller", "name avatar")      // ✅ Get seller name & avatar
+      .populate("buyer", "name avatar");      // ✅ Get buyer name & avatar
 
-    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (!order) {
+      console.error("❌ Order not found in database.");
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    console.log("✅ Order Data Retrieved:", JSON.stringify(order, null, 2)); // ✅ Log response
 
     res.json(order);
   } catch (error) {
-    console.error("Error retrieving order:", error);
+    console.error("🔥 Error retrieving order:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // ✅ Send a message in the order chat
 router.post("/:orderId/message", auth, async (req, res) => {
   const { message } = req.body;
