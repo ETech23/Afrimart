@@ -13,6 +13,7 @@ router.post("/create", auth, async (req, res) => {
     const item = await Item.findById(itemId).populate("user", "_id name");
     if (!item) return res.status(404).json({ error: "Item not found" });
 
+    // ✅ Create order
     const newOrder = new Order({
       buyer: req.user.userId,
       seller: item.user._id,
@@ -21,13 +22,16 @@ router.post("/create", auth, async (req, res) => {
     });
 
     await newOrder.save();
-    res.status(201).json({ success: true, order: newOrder });
+
+    // ✅ Redirect buyer to the order page
+    const orderPageLink = `/order.html?orderId=${newOrder._id}&itemId=${itemId}`;
+    res.status(201).json({ success: true, order: newOrder, redirect: orderPageLink });
+
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // ✅ Get all orders for a buyer or seller
 router.get("/:userId", auth, async (req, res) => {
   try {
