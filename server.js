@@ -3,6 +3,7 @@ const http = require("http");
 const cors = require("cors");
 const { initSocket } = require("./socket");
 const connectDB = require("./config/db");
+const Order = require("./models/Order");  // ✅ Move to the top to avoid undefined errors
 
 require("dotenv").config();
 
@@ -12,27 +13,28 @@ const io = initSocket(server);  // Initialize Socket.io
 
 connectDB().then(() => console.log("✅ MongoDB Connected Successfully"));
 
+// ✅ Configure CORS
 const corsOptions = {
   origin: "*",
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   allowedHeaders: ["Content-Type", "Authorization"],
 };
-
 app.use(cors(corsOptions));
 app.use(express.json());
 
 const onlineUsers = new Map(); // Store active users
 
-// Socket.io Connection
-// Socket.io Connection
+// ✅ Socket.io Connection (Only One Definition)
 io.on("connection", (socket) => {
   console.log("🔌 A user connected:", socket.id);
 
+  // ✅ Handle user connection
   socket.on("userConnected", (userId) => {
     onlineUsers.set(userId, socket.id);
     console.log("✅ User online:", userId);
   });
 
+  // ✅ Handle "Make Offer" event
   socket.on("sendOffer", ({ sellerId, buyerId, itemId }) => {
     const sellerSocketId = onlineUsers.get(sellerId);
     if (sellerSocketId) {
@@ -40,21 +42,31 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("sendMessage", ({ senderId, receiverId, message }) => {
-    const receiverSocketId = onlineUsers.get(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", { senderId, message });
+  // ✅ Handle Chat Messages
+  socket.on("sendMessage", async ({ orderId, senderId, message }) => {
+    try {
+      const order = await Order.findById(orderId).populate("buyer seller");
+      if (!order) {
+        console.error("❌ Order not found.");
+        return socket.emit("errorMessage", "Order not found.");
+      }
+
+      const senderName = senderId === order.buyer._id.toString() ? "Buyer" : "Seller";
+
+      // ✅ Save message to database
+      order.messages.push({ sender: senderId, message });
+      await order.save();
+
+      // ✅ Emit message to both buyer & seller
+      io.to(order.buyer._id.toString()).emit("newMessage", { senderName, message });
+      io.to(order.seller._id.toString()).emit("newMessage", { senderName, message });
+    } catch (error) {
+      console.error("🔥 Error sending message:", error);
+      socket.emit("errorMessage", "Error sending message.");
     }
   });
 
-  // This is the additional message handler you might want to combine with the other
-  socket.on('sendMessage', async ({ orderId, message }) => {
-    const order = await Order.findById(orderId).populate('buyer seller');
-    const senderName = socket.userId === order.buyer._id ? order.buyer.name : order.seller.name;
-    io.to(order.buyer._id).emit('newMessage', { senderName, message });
-    io.to(order.seller._id).emit('newMessage', { senderName, message });
-  });
-
+  // ✅ Handle User Disconnect
   socket.on("disconnect", () => {
     console.log("❌ A user disconnected:", socket.id);
     onlineUsers.forEach((value, key) => {
@@ -65,7 +77,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Emit event when an offer is made
+// ✅ Emit event when an offer is made
 const sendOfferNotification = (sellerId, buyerId, itemId) => {
   const sellerSocketId = onlineUsers.get(sellerId);
   if (sellerSocketId) {
@@ -73,41 +85,10 @@ const sendOfferNotification = (sellerId, buyerId, itemId) => {
   }
 };
 
-const Order = require("./models/Order");
-
-io.on("connection", (socket) => {
-  console.log("🔌 A user connected:", socket.id);
-
-  socket.on("sendMessage", async ({ orderId, senderId, message }) => {
-    try {
-      const order = await Order.findById(orderId).populate("buyer seller");
-      if (!order) return socket.emit("errorMessage", "Order not found.");
-
-      const senderName = senderId === order.buyer._id.toString() ? "Buyer" : "Seller";
-
-      // Save message to database
-      order.messages.push({ sender: senderId, message });
-      await order.save();
-
-      // Emit message to both buyer & seller
-      io.to(order.buyer._id.toString()).emit("newMessage", { senderName, message });
-      io.to(order.seller._id.toString()).emit("newMessage", { senderName, message });
-    } catch (error) {
-      console.error("Error sending message:", error);
-      socket.emit("errorMessage", "Error sending message.");
-    }
-  });
-
-  socket.on("disconnect", () => {
-    console.log("❌ A user disconnected:", socket.id);
-  });
-});
-
+// ✅ Register Routes
 app.use("/api/users", require("./routes/users"));
-app.use("/api/items", require("./routes/items")(sendOfferNotification));  // Pass function to items route
+app.use("/api/items", require("./routes/items")(sendOfferNotification));
+app.use("/api/orders", require("./routes/orders")); // ✅ Make sure `orderRouter` is correctly imported
 
-// ✅ Added order and chat routes
-const orderRouter = require("./routes/orders");
-app.use("/api/orders", orderRouter); 
-
+// ✅ Start the Server
 server.listen(5000, () => console.log("🚀 Server running on port 5000"));
