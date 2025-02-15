@@ -47,40 +47,36 @@ router.get("/:userId", auth, async (req, res) => {
 });
 
 // ✅ Get a specific order (Fixes missing seller & buyer details)
+const mongoose = require("mongoose");
+
 router.get("/:orderId", auth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId)
-      .populate("item", "name price images")  // ✅ Get item details
-      .populate("seller", "name avatar")      // ✅ Get seller name & avatar
-      .populate("buyer", "name avatar");      // ✅ Get buyer name & avatar
+    console.log("📢 [SERVER LOG] Incoming request for order ID:", req.params.orderId);
 
+    // ✅ Validate orderId format
+    if (!mongoose.Types.ObjectId.isValid(req.params.orderId)) {
+      console.error("❌ [SERVER LOG] Invalid order ID format:", req.params.orderId);
+      return res.status(400).json({ error: "Invalid order ID format" });
+    }
+
+    // ✅ Query the database for the order
+    const order = await Order.findById(req.params.orderId)
+      .populate("item", "name price images")
+      .populate("seller", "name avatar")
+      .populate("buyer", "name avatar");
+
+    // ✅ Log the order before returning response
     if (!order) {
-      console.error("❌ Order not found in database.");
+      console.error("❌ [SERVER LOG] Order not found in database. ID:", req.params.orderId);
       return res.status(404).json({ error: "Order not found" });
     }
 
-    console.log("✅ Order Data Retrieved:", JSON.stringify(order, null, 2)); // ✅ Log response
+    console.log("✅ [SERVER LOG] Order Data Retrieved:", JSON.stringify(order, null, 2));
 
-    res.json(order);
+    return res.json(order);
   } catch (error) {
-    console.error("🔥 Error retrieving order:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-// ✅ Send a message in the order chat
-router.post("/:orderId/message", auth, async (req, res) => {
-  const { message } = req.body;
-
-  try {
-    const order = await Order.findById(req.params.orderId);
-    if (!order) return res.status(404).json({ error: "Order not found" });
-
-    order.messages.push({ sender: req.user.userId, message });
-    await order.save();
-    res.json({ success: true, message: "Message sent", order });
-  } catch (error) {
-    console.error("Error posting message:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("🔥 [SERVER LOG] Error retrieving order:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
