@@ -31,14 +31,16 @@ router.post("/create", auth, async (req, res) => {
 });
 
 // ✅ Get all orders for a buyer or seller
-router.get("/user/:userId", auth, async (req, res) => {  // ✅ Fixed conflict
+// ✅ Get all orders for a buyer or seller (Newest First)
+router.get("/:userId", auth, async (req, res) => {
   try {
-    const orders = await Order.find({
-      $or: [{ buyer: req.params.userId }, { seller: req.params.userId }],
-    })
-      .populate("item", "name price images")
-      .populate("seller", "name avatar")
-      .populate("buyer", "name avatar");
+      const orders = await Order.find({
+  $or: [{ buyer: req.params.userId }, { seller: req.params.userId }]
+})
+  .sort({ createdAt: -1 }) // ✅ Correct placement inside `.find()`
+  .populate("item", "name price images")
+  .populate("seller", "name avatar")
+  .populate("buyer", "name avatar");
 
     res.json(orders);
   } catch (error) {
@@ -46,7 +48,6 @@ router.get("/user/:userId", auth, async (req, res) => {  // ✅ Fixed conflict
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // ✅ Get a specific order by ID
 router.get("/:orderId", auth, async (req, res) => {
   try {
@@ -73,6 +74,34 @@ router.get("/:orderId", auth, async (req, res) => {
   } catch (error) {
     console.error("🔥 Error retrieving order:", error);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ✅ Send a message in the order chat
+router.post("/:orderId/message", auth, async (req, res) => {
+  const { message } = req.body;
+  try {
+    const order = await Order.findById(req.params.orderId);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // ✅ Add message to the order
+    const newMessage = {
+      sender: req.user.userId,
+      message: message,
+      timestamp: new Date(),
+    };
++   order.messages.push(newMessage);
+
+    await order.save();
+
++   // ✅ Emit message to both users (Buyer & Seller)
+    req.io.to(order.buyer.toString()).emit("newMessage", { senderId: req.user.userId, message });
+    req.io.to(order.seller.toString()).emit("newMessage", { senderId: req.user.userId, message });
+
+    res.json({ success: true, message: "Message sent", order });
+  } catch (error) {
+    console.error("Error posting message:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
