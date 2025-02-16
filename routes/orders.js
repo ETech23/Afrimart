@@ -38,7 +38,7 @@ router.get("/:userId", auth, async (req, res) => {
   $or: [{ buyer: req.params.userId }, { seller: req.params.userId }]
 })
   .sort({ createdAt: -1 }) // ✅ Correct placement inside `.find()`
-  .populate("item", "name price images")
+  .populate("item", "name price currency images createdAt")
   .populate("seller", "name avatar")
   .populate("buyer", "name avatar");
 
