@@ -14,22 +14,6 @@ router.post("/create", auth, async (req, res) => {
     const item = await Item.findById(itemId).populate("user", "_id name");
     if (!item) return res.status(404).json({ error: "Item not found" });
 
-    // ✅ Check if an existing order already exists
-    const existingOrder = await Order.findOne({
-      buyer: req.user.userId,
-      seller: item.user._id,
-      item: itemId,
-    });
-
-    if (existingOrder) {
-      return res.status(200).json({
-        success: false,
-        message: "You have already placed an order for this item.",
-        redirect: `/order.html?orderId=${existingOrder._id}&itemId=${itemId}`,
-      });
-    }
-
-    // ✅ Create new order
     const newOrder = new Order({
       buyer: req.user.userId,
       seller: item.user._id,
@@ -38,43 +22,32 @@ router.post("/create", auth, async (req, res) => {
     });
 
     await newOrder.save();
-
-    res.status(201).json({
-      success: true,
-      order: newOrder,
-      redirect: `/order.html?orderId=${newOrder._id}&itemId=${itemId}`,
-      createdAt: newOrder.createdAt, // ✅ Ensure createdAt is returned
-    });
-
+    const orderPageLink = `/order.html?orderId=${newOrder._id}&itemId=${itemId}`;
+    res.status(201).json({ success: true, order: newOrder, redirect: orderPageLink });
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
+
+// ✅ Get all orders for a buyer or seller
 // ✅ Get all orders for a buyer or seller (Newest First)
 router.get("/:userId", auth, async (req, res) => {
   try {
-    const orders = await Order.find({
-      $or: [{ buyer: req.params.userId }, { seller: req.params.userId }],
-    })
-      .sort({ createdAt: -1 }) // ✅ Sort by newest first
-      .populate("item", "name price currency images createdAt")
-      .populate("seller", "name avatar")
-      .populate("buyer", "name avatar");
+      const orders = await Order.find({
+  $or: [{ buyer: req.params.userId }, { seller: req.params.userId }]
+})
+  .sort({ createdAt: -1 }) // ✅ Correct placement inside `.find()`
+  .populate("item", "name price currency images createdAt")
+  .populate("seller", "name avatar")
+  .populate("buyer", "name avatar");
 
-    // ✅ Ensure createdAt is always included
-    res.json(
-      orders.map((order) => ({
-        ...order.toObject(),
-        createdAt: order.createdAt, // Explicitly include createdAt
-      }))
-    );
+    res.json(orders);
   } catch (error) {
     console.error("Error retrieving orders:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // ✅ Get a specific order by ID
 router.get("/:orderId", auth, async (req, res) => {
   try {
