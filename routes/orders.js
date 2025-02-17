@@ -96,13 +96,21 @@ router.get("/:orderId", auth, async (req, res) => {
 });
 
 // ✅ Send a message in the order chat
+// ✅ Send a message in the order chat
 router.post("/:orderId/message", auth, async (req, res) => {
   const { message } = req.body;
 
   try {
+    // ✅ Find order
     const order = await Order.findById(req.params.orderId);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
+    // ✅ Validate message
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Invalid message content" });
+    }
+
+    // ✅ Add message to order
     const newMessage = {
       sender: req.user.userId,
       message,
@@ -112,7 +120,7 @@ router.post("/:orderId/message", auth, async (req, res) => {
     order.messages.push(newMessage);
     await order.save();
 
-    // ✅ Emit message with timestamp
+    // ✅ Emit message to both buyer & seller
     req.io.to(order.buyer.toString()).emit("newMessage", {
       senderId: req.user.userId,
       message,
@@ -125,11 +133,29 @@ router.post("/:orderId/message", auth, async (req, res) => {
       timestamp: newMessage.timestamp,
     });
 
+    console.log("✅ Message sent:", newMessage);
+
     res.json({ success: true, message: "Message sent", order });
   } catch (error) {
-    console.error("Error posting message:", error);
+    console.error("🔥 Error posting message:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
 
+// ✅ Get messages for a specific order
+router.get("/:orderId/messages", auth, async (req, res) => {
+  try {
+    // ✅ Find order & populate messages
+    const order = await Order.findById(req.params.orderId).populate("messages.sender", "name avatar");
+
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    console.log("📩 Messages loaded:", order.messages);
+
+    res.json(order.messages || []); // ✅ Always return an array
+  } catch (error) {
+    console.error("🔥 Error fetching messages:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 module.exports = router;
