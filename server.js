@@ -96,6 +96,7 @@ const sendOfferNotification = (sellerId, buyerId, itemId) => {
 app.use("/api/users", require("./routes/users"));
 app.use("/api/items", require("./routes/items")(sendOfferNotification));
 app.use("/api/orders", require("./routes/orders")); // ✅ Make sure `orderRouter` is correctly imported
+app.use("/uploads", express.static("uploads"));
 
 // ✅ Start the Server
 server.listen(5000, () => console.log("🚀 Server running on port 5000"));

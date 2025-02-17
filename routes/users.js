@@ -5,6 +5,20 @@ const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const multer = require("multer");
+const path = require("path");
+
+// ✅ Configure Multer for Profile Picture Uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/"); // Ensure 'uploads/' directory exists
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${req.user.userId}-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ storage });
 
 // Register user
 router.post("/register", async (req, res) => {
@@ -69,6 +83,27 @@ router.post("/login", async (req, res) => {
         console.error("🔥 Login Error:", error);
         res.status(500).json({ message: "Server error. Please try again later." });
     }
+});
+
+// ✅ Update User Profile Picture
+router.put("/profile/avatar", auth, upload.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // ✅ Save new profile picture path
+    user.avatar = `/uploads/${req.file.filename}`;
+    await user.save();
+
+    res.json({ success: true, avatar: user.avatar });
+  } catch (error) {
+    console.error("Error updating profile photo:", error);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // GET /api/users - Test Route
