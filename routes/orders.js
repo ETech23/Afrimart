@@ -54,6 +54,7 @@ router.post("/create", auth, async (req, res) => {
 // ✅ Get all orders for a buyer or seller (Newest First)
 router.get("/:userId", auth, async (req, res) => {
   try {
+
     const orders = await Order.find({
       $or: [{ buyer: req.params.userId }, { seller: req.params.userId }],
     })
@@ -69,6 +70,7 @@ router.get("/:userId", auth, async (req, res) => {
         createdAt: order.createdAt, // Explicitly include createdAt
       }))
     );
+
   } catch (error) {
     console.error("Error retrieving orders:", error);
     res.status(500).json({ error: "Server error" });
