@@ -15,12 +15,7 @@ const OrderSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } } // ✅ Ensures createdAt & updatedAt
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
-
-// Ensure createdAt appears in responses explicitly
-OrderSchema.virtual("createdTime").get(function () {
-  return this.createdAt;
-});
 
 module.exports = mongoose.model("Order", OrderSchema);
