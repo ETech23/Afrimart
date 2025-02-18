@@ -24,6 +24,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // ✅ Update Profile Picture (Cloud Storage)
+// ✅ Update Profile Picture (Cloudinary)
 router.put("/profile/avatar", auth, upload.single("avatar"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -31,8 +32,8 @@ router.put("/profile/avatar", auth, upload.single("avatar"), async (req, res) =>
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // ✅ Update Avatar with Cloudinary URL
-    user.avatar = req.file.path;
+    // ✅ Store secure URL instead of default path
+    user.avatar = req.file.secure_url;
     await user.save();
 
     res.json({ success: true, avatar: user.avatar });
@@ -41,7 +42,6 @@ router.put("/profile/avatar", auth, upload.single("avatar"), async (req, res) =>
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 // ✅ Register User
 router.post("/register", async (req, res) => {
@@ -107,17 +107,28 @@ router.get("/profile", auth, async (req, res) => {
 
 router.put("/profile/update", auth, async (req, res) => {
     try {
-        const { name, email, location, dob } = req.body;
+        let { name, email, location, dob } = req.body;
 
         // Ensure user exists
         const user = await User.findById(req.user.userId);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        // Update user fields
-        user.name = name || user.name;
-        user.email = email || user.email;
-        user.location = location || user.location;
-        user.dob = dob || user.dob;
+        // ✅ Convert empty strings to null (prevent MongoDB errors)
+        name = name?.trim() || user.name;
+        email = email?.trim() || user.email;
+        location = location?.trim() || user.location;
+        dob = dob ? new Date(dob) : user.dob;
+
+        // ✅ Ensure Date is valid
+        if (dob && isNaN(dob.getTime())) {
+            return res.status(400).json({ error: "Invalid date format" });
+        }
+
+        // ✅ Update fields
+        user.name = name;
+        user.email = email;
+        user.location = location;
+        user.dob = dob;
 
         await user.save();
 
@@ -127,5 +138,4 @@ router.put("/profile/update", auth, async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
-
 module.exports = router;
