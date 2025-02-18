@@ -5,30 +5,44 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const { v2: cloudinary } = require("cloudinary");
 
-// ✅ Ensure "uploads/" directory exists
-const uploadDir = path.join(__dirname, "../uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// ✅ Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-// ✅ Configure Multer for Profile Picture Uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir); // ✅ Save files in "uploads/"
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${req.user.userId}-${Date.now()}${path.extname(file.originalname)}`);
-  }
+// ✅ Multer Setup for Cloudinary
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const storage = new CloudinaryStorage({
+  cloudinary,
+  folder: "user_profiles",
+  allowedFormats: ["jpg", "png", "jpeg"],
 });
 const upload = multer({ storage });
 
-// ✅ Serve Static Files (Add this in server.js)
-router.use("/uploads", express.static(uploadDir));
+// ✅ Update Profile Picture (Cloud Storage)
+router.put("/profile/avatar", auth, upload.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-// ✅ Register User
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // ✅ Update Avatar with Cloudinary URL
+    user.avatar = req.file.path;
+    await user.save();
+
+    res.json({ success: true, avatar: user.avatar });
+  } catch (error) {
+    console.error("Error updating profile photo:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 // ✅ Register User
 router.post("/register", async (req, res) => {
   try {
@@ -74,27 +88,6 @@ router.post("/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Login Error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-// ✅ Update User Profile Picture
-router.put("/profile/avatar", auth, upload.single("avatar"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-    const user = await User.findById(req.user.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    // ✅ Construct full image URL
-    const avatarUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-
-    // ✅ Update User Profile
-    user.avatar = avatarUrl;
-    await user.save();
-
-    res.json({ success: true, avatar: avatarUrl });
-  } catch (error) {
-    console.error("Error updating profile photo:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
