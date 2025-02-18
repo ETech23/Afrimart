@@ -105,4 +105,27 @@ router.get("/profile", auth, async (req, res) => {
   }
 });
 
+router.put("/profile/update", auth, async (req, res) => {
+    try {
+        const { name, email, location, dob } = req.body;
+
+        // Ensure user exists
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        // Update user fields
+        user.name = name || user.name;
+        user.email = email || user.email;
+        user.location = location || user.location;
+        user.dob = dob || user.dob;
+
+        await user.save();
+
+        res.json({ success: true, message: "Profile updated successfully", user });
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 module.exports = router;
